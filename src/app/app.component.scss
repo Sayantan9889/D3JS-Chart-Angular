@@ -1,9 +1,20 @@
 .main-container {
     margin: 0px;
     padding: 0px;
-    height: calc(100vh - 72px);
+    width: 100%;
+    height: 100vh;
 }
 
 .active {
     color: #419dd7 !important;
+}
+
+.hover-effect {
+    &:hover {
+        scale: 1.05;
+    }
+}
+
+.chart-viewer {
+    height: calc(100% - 56px);
 }

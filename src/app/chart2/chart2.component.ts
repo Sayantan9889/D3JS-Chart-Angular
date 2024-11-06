@@ -1,5 +1,5 @@
 import { afterNextRender, Component, ElementRef, viewChild } from '@angular/core';
-import { axisBottom, axisLeft, create, groupSort, line, max, scaleBand, scaleLinear, scalePoint } from 'd3';
+import { axisBottom, axisLeft, create, curveMonotoneX, groupSort, line, max, scaleBand, scaleLinear, scalePoint } from 'd3';
 
 @Component({
   selector: 'app-chart2',
@@ -101,6 +101,7 @@ export class Chart2Component {
     const lineFunc: any = line()
       .x((d: any) => x(d.letter))
       .y((d: any) => y(d.frequency))
+      .curve(curveMonotoneX) // make sharp corners more smooth.
 
     // Append a path for the line.
     svg.append("path")

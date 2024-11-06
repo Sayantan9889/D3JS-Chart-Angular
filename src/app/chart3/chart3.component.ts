@@ -22,17 +22,8 @@ export class Chart3Component {
   constructor() {
     afterNextRender(() => {
       this.createChart();
-      // this.chartInit();
     });
   }
-
-  // private chartInit() {
-  //   const _chart: HTMLDivElement | undefined = this.chart()?.nativeElement;
-  //   if (_chart) {
-  //     const graph = this.createChart();
-  //     graph && _chart.append(graph);
-  //   }
-  // }
 
   private createChart() {
     // Set up SVG dimensions
