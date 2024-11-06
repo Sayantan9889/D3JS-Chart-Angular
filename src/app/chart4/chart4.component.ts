@@ -129,31 +129,28 @@ export class Chart4Component {
 
 
 
-    // Legend
+    // Legend (Optional, will be added by html/css)
     const legendData = [
       { color: '#42F090', text: 'Average Listings' },
       { color: '#FFDD00', text: 'Median Price' },
       { color: '#106BB3', text: 'All Properties' }
     ];
-
     legendData.forEach((d, i) => {
       svg.append('rect')
-        .attr('x', width - 130)
-        .attr('y', i * 20)
+        .attr('x', (i + 2.3)*130)
+        .attr('y', 0)
         .attr('width', 10)
         .attr('height', 10)
         .style('fill', d.color);
 
       svg.append('text')
-        .attr('x', width - 115)
-        .attr('y', i * 20 + 9)
+        .attr('x', (i + 2.3)*130+20)
+        .attr('y', 7)
         .text(d.text)
         .style('font-size', '12px')
         .attr('alignment-baseline', 'middle');
     });
 
-
     return svg.node();
-
   }
 }
