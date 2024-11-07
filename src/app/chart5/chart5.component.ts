@@ -111,13 +111,14 @@ export class Chart5Component {
 
 
 
+
+    // Append the absorption rate line to the SVG  (Draw line segments with different colour in different zones)
+    // Create line generator function
     const lineAabsorptionRate = line()
       .x((d: any) => this.xAxis(d.date))
       .y((d: any) => this.yAxis(d.rate))
       .curve(curveMonotoneX);
 
-
-    // Append the absorption rate line to the SVG  (Draw line segments with different colour in different zones)
     // Helper function to find the zone based on the rate
     function findZone(rate: number) {
       return zones.find(zone => rate >= zone.min && rate <= zone.max);
@@ -128,6 +129,16 @@ export class Chart5Component {
       const ratio = (boundary - p1.rate) / (p2.rate - p1.rate);
       const date = new Date(p1.date.getTime() + ratio * (p2.date.getTime() - p1.date.getTime()));
       return { date, rate: boundary };
+    }
+
+    // Helper function to draw a line segment with a specific color
+    function drawLineSegment(segmentData: any, color: any, lineGenerator: any) {
+      svg.append('path')
+        .datum(segmentData)
+        .attr('fill', 'none')
+        .attr('stroke', color)
+        .attr('stroke-width', 2)
+        .attr('d', lineGenerator);
     }
 
     // Draw the continuous line with color transitions across zone boundaries
@@ -176,16 +187,6 @@ export class Chart5Component {
       }
     }
 
-
-    // Helper function to draw a line segment with a specific color
-    function drawLineSegment(segmentData: any, color: any, lineGenerator: any) {
-      svg.append('path')
-        .datum(segmentData)
-        .attr('fill', 'none')
-        .attr('stroke', color)
-        .attr('stroke-width', 2)
-        .attr('d', lineGenerator);
-    }
 
 
     // Legend (Optional, will be added by html/css)
