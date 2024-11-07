@@ -1,5 +1,5 @@
 import { afterNextRender, Component, ElementRef, viewChild } from '@angular/core';
-import { axisBottom, axisLeft, create, curveMonotoneX, extent, format, line, scaleLinear, scaleTime, timeFormat } from 'd3';
+import { axisBottom, axisLeft, create, curveBasis, curveCardinal, curveCatmullRom, curveMonotoneX, extent, format, line, scaleLinear, scaleTime, Selection, timeFormat } from 'd3';
 
 @Component({
   selector: 'app-chart5',
@@ -24,6 +24,12 @@ export class Chart5Component {
     { date: new Date(2023, 8, 1), rate: 10 }
   ];
 
+  private svgChart!: Selection<SVGSVGElement, undefined, null, undefined>;
+  private xAxis: any;
+  private yAxis: any;
+
+  protected shouldShow: boolean = false;
+
   constructor() {
     afterNextRender(() => {
       this.chartInit();
@@ -33,8 +39,9 @@ export class Chart5Component {
   private chartInit(): void {
     const _chartContainer: HTMLDivElement | undefined = this.chart()?.nativeElement;
     if (_chartContainer) {
-      const chart = this.createChart();
-      chart && _chartContainer.append(chart);
+      this.svgChart = this.createChart();
+      const svg = this.svgChart.node()
+      svg && _chartContainer.append(svg);
     }
   }
 
@@ -46,11 +53,11 @@ export class Chart5Component {
     // const x = scaleUtc()
     //   .domain([new Date("2023-01-01"), new Date()])
     //   .range([margin.left, width - margin.right])
-    const x = scaleTime()
+    this.xAxis = scaleTime()
       .domain(extent(this.data, d => d.date) as [Date, Date])
       .range([margin.left, width - margin.right])
 
-    const y = scaleLinear()
+    this.yAxis = scaleLinear()
       .domain([0, 150])
       .range([height - margin.bottom, margin.top]);
 
@@ -63,23 +70,23 @@ export class Chart5Component {
     // append the x axis and tick marks
     svg.append('g')
       .attr('transform', `translate(0, ${height - margin.bottom})`)
-      .call(axisBottom(x).tickFormat((timeFormat("%b %Y") as any)))
+      .call(axisBottom(this.xAxis).tickFormat((timeFormat("%b %Y") as any)))
 
     // append the y axis and tick marks
     svg.append('g')
       .attr('transform', `translate(${margin.left}, 0)`)
-      .call(axisLeft(y).tickFormat((d) => `${d}%`));
+      .call(axisLeft(this.yAxis).tickFormat((d) => `${d}%`));
 
     // add horizontal grid line
     svg.append('g')
       .attr('class', 'horizontalGrid')
       .selectAll()
-      .data(y.ticks(10))
+      .data(this.yAxis.ticks(10))
       .enter().append("line")
       .attr("x1", 41)
       .attr("x2", width - margin.right)
-      .attr("y1", (d: any) => y(d))
-      .attr("y2", (d: any) => y(d))
+      .attr("y1", (d: any) => this.yAxis(d))
+      .attr("y2", (d: any) => this.yAxis(d))
       .attr("stroke", "#e0e0e0") // Change color of grid lines as needed
       .attr("stroke-width", 1);
     // Define zones for market conditions
@@ -94,8 +101,8 @@ export class Chart5Component {
       svg.append('line')
         .attr('x1', 41)
         .attr('x2', width - margin.right)
-        .attr('y1', y(zone.max))
-        .attr('y2', y(zone.max))
+        .attr('y1', this.yAxis(zone.max))
+        .attr('y2', this.yAxis(zone.max))
         .attr('stroke', zone.color)
         .attr('stroke-width', 1)
         .style('stroke-dasharray', '4 4');
@@ -104,80 +111,81 @@ export class Chart5Component {
 
 
 
-    // Define line generators for each line
     const lineAabsorptionRate = line()
-      .x((d: any) => x(d.date))
-      .y((d: any) => y(d.rate))
-      .curve(curveMonotoneX); // make sharp corners more smooth.
-
-    // Append the absorption rate line to the SVG  (Draw line segments with single color)
-    svg.append('path')
-      .datum(this.data)
-      .attr('fill', 'none')
-      .attr('stroke', '#66c2a5') // main line color
-      .attr('stroke-width', 2)
-      .attr('d', lineAabsorptionRate);
+      .x((d: any) => this.xAxis(d.date))
+      .y((d: any) => this.yAxis(d.rate))
+      .curve(curveMonotoneX);
 
 
-    // // Helper function to find the zone based on the rate
-    // function findZone(rate: number) {
-    //   return zones.find(zone => rate >= zone.min && rate <= zone.max);
-    // }
+    // Append the absorption rate line to the SVG  (Draw line segments with different colour in different zones)
+    // Helper function to find the zone based on the rate
+    function findZone(rate: number) {
+      return zones.find(zone => rate >= zone.min && rate <= zone.max);
+    }
 
-    // // Helper function to calculate intersection point between two points at a given boundary
-    // function interpolatePoint(p1:any, p2:any, boundary:any) {
-    //   const ratio = (boundary - p1.rate) / (p2.rate - p1.rate);
-    //   const date = new Date(p1.date.getTime() + ratio * (p2.date.getTime() - p1.date.getTime()));
-    //   return { date, rate: boundary };
-    // }
+    // Helper function to calculate intersection point between two points at a given boundary
+    function interpolatePoint(p1: any, p2: any, boundary: any) {
+      const ratio = (boundary - p1.rate) / (p2.rate - p1.rate);
+      const date = new Date(p1.date.getTime() + ratio * (p2.date.getTime() - p1.date.getTime()));
+      return { date, rate: boundary };
+    }
 
-    // // Draw the continuous line with color transitions across zone boundaries
-    // for (let i = 0; i < this.data.length - 1; i++) {
-    //   let startPoint = this.data[i];
-    //   let endPoint = this.data[i + 1];
+    // Draw the continuous line with color transitions across zone boundaries
+    for (let i = 0; i < this.data.length - 1; i++) {
+      let startPoint = this.data[i];
+      let endPoint = this.data[i + 1];
+      let segmentData = [startPoint];
+      const tolerance = 1e-5; // Small tolerance to prevent infinite looping and ensure continuity
 
-    //   let currentZone:any = findZone(startPoint.rate);
-    //   let segmentData = [startPoint];
+      while (true) {
+        const currentZone: any = findZone(startPoint.rate);
+        const nextZone = findZone(endPoint.rate);
 
-    //   // Check for zone crossings between startPoint and endPoint
-    //   for (const boundaryZone of zones) {
-    //     if ((startPoint.rate < boundaryZone.min && endPoint.rate >= boundaryZone.min) ||
-    //       (startPoint.rate > boundaryZone.max && endPoint.rate <= boundaryZone.max)) {
-    //       // Calculate intersection point at the boundary
-    //       const boundaryRate = startPoint.rate < endPoint.rate ? boundaryZone.min : boundaryZone.max;
-    //       const boundaryPoint = interpolatePoint(startPoint, endPoint, boundaryRate);
+        if (currentZone === nextZone) {
+          // If both points are in the same zone, draw the segment and break
+          segmentData.push(endPoint);
+          drawLineSegment(segmentData, currentZone.color, lineAabsorptionRate);
+          break;
+        } else {
+          // Find the boundary that the segment crosses
+          const boundaryRate = startPoint.rate < endPoint.rate
+            ? currentZone.max
+            : currentZone.min;
 
-    //       // Draw the line segment up to the boundary
-    //       segmentData.push(boundaryPoint);
-    //       drawLineSegment(segmentData, currentZone.color);
+          // Calculate the intersection point at the boundary
+          const boundaryPoint = interpolatePoint(startPoint, endPoint, boundaryRate);
 
-    //       // Start a new segment from the boundary point and update the current zone
-    //       segmentData = [boundaryPoint];
-    //       currentZone = findZone(boundaryRate);
-    //     }
-    //   }
+          // Check if boundaryPoint is nearly the same as startPoint to prevent infinite looping
+          if (Math.abs(boundaryPoint.rate - startPoint.rate) < tolerance) {
+            segmentData.push(endPoint);
+            drawLineSegment(segmentData, currentZone.color, lineAabsorptionRate);
+            break;
+          }
 
-    //   // Complete the remaining segment from the last boundary point to the endpoint
-    //   segmentData.push(endPoint);
-    //   drawLineSegment(segmentData, currentZone.color);
-    // }
+          // Draw up to the boundary point
+          segmentData.push(boundaryPoint);
+          drawLineSegment(segmentData, currentZone.color, lineAabsorptionRate);
 
-    // // Helper function to draw a line segment with a specific color
-    // function drawLineSegment(segmentData:any[], color:any) {
-    //   svg.append('path')
-    //     .datum(segmentData)
-    //     .attr('fill', 'none')
-    //     .attr('stroke', color)
-    //     .attr('stroke-width', 2)
-    //     .attr('d', line<{ date: Date; rate: number }>()
-    //       .x(d => x(d.date))
-    //       .y(d => y(d.rate))
-    //       .curve(curveMonotoneX)
-    //     );
-    // }
-
+          // Prepare for the next segment, moving startPoint slightly forward to avoid retracing
+          startPoint = {
+            date: new Date(boundaryPoint.date.getTime() + 1), // Slightly move forward in time
+            rate: boundaryPoint.rate + (startPoint.rate < endPoint.rate ? tolerance : -tolerance)
+          };
+          segmentData = [startPoint];
+        }
+      }
+    }
 
 
+    // Helper function to draw a line segment with a specific color
+    function drawLineSegment(segmentData: any, color: any, lineGenerator: any) {
+      svg.append('path')
+        .datum(segmentData)
+        .attr('fill', 'none')
+        .attr('stroke', color)
+        .attr('stroke-width', 2)
+        .attr('d', lineGenerator);
+    }
 
 
     // Legend (Optional, will be added by html/css)
@@ -197,6 +205,40 @@ export class Chart5Component {
         .attr('alignment-baseline', 'middle');
     });
 
-    return svg.node();
+
+
+    return svg;
   }
+
+  protected showHideCurveLine(): void {
+    // If we are going to show the curve line, append it
+    if (!this.shouldShow) {
+      if (this.svgChart) {
+        const lineAabsorptionRate = line()
+          .x((d: any) => this.xAxis(d.date))
+          .y((d: any) => this.yAxis(d.rate))
+          .curve(curveMonotoneX); // make sharp corners more smooth.
+
+        this.svgChart.append('path')
+          .datum(this.data)
+          .attr('class', 'absorption-rate-path')  // Add a class for easy selection
+          .attr('fill', 'none')
+          .attr('stroke', '#bd930b') // main line color
+          .attr('stroke-width', 2)
+          .attr('d', lineAabsorptionRate);
+      }
+    } else {
+      // If the curve line is to be hidden, remove it
+      console.log("curve: ");
+      const _curveLines = this.svgChart.node()?.querySelectorAll('.absorption-rate-path')
+      if (_curveLines) {
+        console.log("_curveLines: ", _curveLines);
+        _curveLines.forEach(path => {
+          path.remove();
+        });
+      }
+    }
+    this.shouldShow = !this.shouldShow
+  }
+
 }
