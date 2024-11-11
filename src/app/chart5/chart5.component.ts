@@ -206,8 +206,6 @@ export class Chart5Component {
         .attr('alignment-baseline', 'middle');
     });
 
-
-
     return svg;
   }
 
