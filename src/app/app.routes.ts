@@ -7,5 +7,6 @@ export const routes: Routes = [
       { path: 'chart3', loadComponent: () => import('./chart3/chart3.component').then(c => c.Chart3Component) },
       { path: 'chart4', loadComponent: () => import('./chart4/chart4.component').then(c => c.Chart4Component) },
       { path: 'chart5', loadComponent: () => import('./chart5/chart5.component').then(c => c.Chart5Component) },
+      { path: 'chart6', loadComponent: () => import('./chart6/chart6.component').then(c => c.Chart6Component) },
     { path: '**', redirectTo: '/chart1' }
 ];
